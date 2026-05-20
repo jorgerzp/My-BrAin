@@ -6,10 +6,6 @@ import path from 'node:path'
 import http from 'node:http'
 import { fileURLToPath } from 'node:url'
 
-// Debe coincidir EXACTAMENTE con el nombre del repositorio en GitHub (ruta de GitHub Pages).
-// Repo: My_BrAIn_v2 → https://usuario.github.io/My_BrAIn_v2/
-const GITHUB_PAGES_BASE = '/My_BrAIn_v2/'
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const devApiPortFile = path.join(__dirname, '../backend/server/.dev-api-port')
 
@@ -68,7 +64,7 @@ function mybrainApiProxy() {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
-  base: command === 'serve' ? '/' : GITHUB_PAGES_BASE,
+  base: '/', // Modificado para que funcione correctamente en Vercel
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
