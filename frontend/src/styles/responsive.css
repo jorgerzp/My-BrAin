@@ -295,13 +295,47 @@
     box-shadow: 12px 0 40px rgba(0, 0, 0, 0.18);
   }
 
+  .dashboard-layout {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   .dashboard-main {
-    margin-left: 0;
-    max-width: none;
+    margin-left: 0 !important;
+    max-width: 100% !important;
     width: 100%;
     padding: 16px;
+    padding-left: calc(16px + var(--safe-left));
+    padding-right: calc(16px + var(--safe-right));
     padding-top: calc(var(--mobile-top-bar-height) + var(--safe-top) + 16px);
     padding-bottom: calc(16px + var(--safe-bottom));
+  }
+
+  /* Módulos a ancho completo (anulan max-width inline de páginas) */
+  .dashboard-main > header,
+  .dashboard-main > section,
+  .dashboard-main > .page-head,
+  .dashboard-main .ev-section,
+  .dashboard-main .ev-head,
+  .dashboard-main .fin-chart,
+  .dashboard-main .fin-form-section,
+  .dashboard-main .fin-table-wrap,
+  .dashboard-main .fin-cat-section,
+  .dashboard-main .fin-toolbar,
+  .dashboard-main .stats-grid,
+  .dashboard-main .lc-card,
+  .dashboard-main .lc-from-menu,
+  .dashboard-main .ins-section,
+  .dashboard-main .ins-kpi-strip {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dash-sub {
+    max-width: 100% !important;
   }
 }
 
@@ -380,6 +414,63 @@
 .fin-form {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
   align-items: end;
+}
+
+@media (max-width: 768px) {
+  .dashboard-main .fin-form,
+  .dashboard-main .ev-form,
+  .dashboard-main .ev-form-hucha {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .dashboard-main .fin-form .btn-primary,
+  .dashboard-main .ev-form .btn-primary,
+  .dashboard-main .ev-form button[type='submit'] {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dashboard-main .fin-select-collapsible,
+  .dashboard-main .fin-select-trigger {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-main .fin-select-trigger span {
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal !important;
+  }
+
+  .dashboard-main .ev-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-main .ev-card .btn-del-ev {
+    width: 100%;
+    text-align: center;
+  }
+
+  .dashboard-main .fin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-main .fin-toolbar label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .dashboard-main .fin-toolbar select,
+  .dashboard-main .fin-toolbar input[type='number'] {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 .fin-toolbar,

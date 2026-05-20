@@ -373,7 +373,9 @@ export default function Eventos() {
             padding: 24px;
             border-radius: 16px;
             margin-bottom: 22px;
+            width: 100%;
             max-width: 720px;
+            box-sizing: border-box;
           }
           .section-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 8px; }
           .ev-intro { font-size: 0.88rem; margin-bottom: 18px; line-height: 1.45; }
@@ -535,6 +537,26 @@ export default function Eventos() {
             transition: width 0.4s ease;
           }
           .muted { color: var(--color-text-muted); }
+          @media (max-width: 768px) {
+            .ev-form,
+            .ev-form-hucha {
+              grid-template-columns: 1fr;
+            }
+            .ev-section {
+              max-width: 100%;
+            }
+            .ev-hucha-aport {
+              flex-direction: column;
+              align-items: stretch;
+            }
+            .ev-aport-monto,
+            .ev-aport-nota,
+            .ev-aport-fecha,
+            .ev-aport-btn {
+              width: 100%;
+              min-width: 0;
+            }
+          }
         `}</style>
     </DashboardLayout>
   )

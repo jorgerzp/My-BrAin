@@ -318,15 +318,25 @@ body {
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
 }
 
 .dashboard-main {
   flex: 1;
   min-width: 0;
   width: 100%;
+  max-width: 100%;
   padding: 32px;
-  margin-left: var(--layout-sidebar-offset);
-  max-width: min(1200px, 100%);
+  box-sizing: border-box;
+}
+
+/* Solo escritorio: hueco para la sidebar fija */
+@media (min-width: 1025px) {
+  .dashboard-main {
+    margin-left: var(--layout-sidebar-offset);
+    max-width: min(1200px, 100%);
+  }
 }
 
 .dash-greeting {

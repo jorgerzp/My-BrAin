@@ -603,6 +603,14 @@ export default function Finanzas() {
             margin-top: 12px;
             overflow: visible;
           }
+          @media (max-width: 768px) {
+            .fin-form {
+              grid-template-columns: 1fr;
+            }
+            .fin-form .btn-primary {
+              width: 100%;
+            }
+          }
           .fin-form input {
             width: 100%;
             box-sizing: border-box;
@@ -627,8 +635,10 @@ export default function Finanzas() {
             border-radius: 12px;
           }
           .fin-select-trigger span {
-            white-space: normal;
-            word-break: break-word;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
           .fin-select-menu,
           .fin-select-menu--portal {
