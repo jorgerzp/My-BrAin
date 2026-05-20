@@ -1,0 +1,9 @@
+{
+  "name": "mybrain-backend",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix server",
+    "start": "npm run start --prefix server",
+    "install:server": "npm install --prefix server"
+  }
+}
