@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 import { readJsonResponse } from '../utils/readJsonResponse'
 
 const fmt = (n) =>
@@ -127,9 +127,7 @@ export default function InsightsAlertas() {
   const showSkeleton = initial && loading && !payload
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main ins-main">
+    <DashboardLayout className="ins-main">
         <header className="ins-hero animate-fade-in">
           <p className="ins-eyebrow">Finanzas personales</p>
           <h1 className="dash-greeting ins-title">
@@ -350,7 +348,7 @@ export default function InsightsAlertas() {
         )}
 
         <style>{`
-          .dashboard-layout .dashboard-main.ins-main {
+          .ins-main {
             max-width: none;
             width: 100%;
             flex: 1 1 auto;
@@ -790,7 +788,6 @@ export default function InsightsAlertas() {
             line-height: 1.45;
           }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

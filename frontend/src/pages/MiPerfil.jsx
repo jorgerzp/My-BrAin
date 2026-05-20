@@ -1,14 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 
 export default function MiPerfil() {
   const { user } = useAuth()
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main">
+    <DashboardLayout>
         <header className="perfil-card glass animate-fade-in">
           <h1 className="dash-greeting">Mi perfil</h1>
           <p className="dash-sub">Datos de tu cuenta en MybrAIn.</p>
@@ -28,7 +26,7 @@ export default function MiPerfil() {
           .perfil-card {
             padding: 28px;
             border-radius: 18px;
-            max-width: 480px;
+            max-width: min(480px, 100%);
           }
           .perfil-dl {
             margin: 20px 0;
@@ -48,7 +46,6 @@ export default function MiPerfil() {
             color: var(--color-text);
           }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 
 function etiquetaItemLista(it) {
   const n = Number(it.cantidad) || 1
@@ -116,9 +116,7 @@ export default function ListaCompra() {
   const hechos = lista.filter((it) => it.comprado)
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main">
+    <DashboardLayout>
         <header className="lc-head animate-fade-in">
           <h1 className="dash-greeting">
             Lista de la compra — <span className="gradient-text">todo en un vistazo</span>
@@ -349,7 +347,6 @@ export default function ListaCompra() {
           }
           .muted { color: var(--color-text-muted); }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

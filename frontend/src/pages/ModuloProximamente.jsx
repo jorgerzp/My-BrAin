@@ -1,11 +1,9 @@
 import { Link } from 'react-router-dom'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 
 export default function ModuloProximamente({ titulo, descripcion }) {
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main">
+    <DashboardLayout>
         <header className="mp-card glass animate-fade-in">
           <h1 className="dash-greeting">{titulo}</h1>
           <p className="dash-sub">{descripcion || 'Estamos trabajando en este módulo.'}</p>
@@ -20,7 +18,6 @@ export default function ModuloProximamente({ titulo, descripcion }) {
             max-width: 560px;
           }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 import { readJsonResponse } from '../utils/readJsonResponse'
 
 const fmt = (n) =>
@@ -183,9 +183,7 @@ export default function Eventos() {
   }
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main">
+    <DashboardLayout>
         <header className="ev-head animate-fade-in">
           <h1 className="dash-greeting">
             Eventos — <span className="gradient-text">próximos y objetivos</span>
@@ -538,7 +536,6 @@ export default function Eventos() {
           }
           .muted { color: var(--color-text-muted); }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

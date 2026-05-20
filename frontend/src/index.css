@@ -2,6 +2,7 @@
 
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/responsive.css";
 
 /* ========== Aurora background (Tailwind v4 — animación + variables de color) ========== */
 @theme {
@@ -321,27 +322,28 @@ body {
 
 .dashboard-main {
   flex: 1;
+  min-width: 0;
+  width: 100%;
   padding: 32px;
   margin-left: var(--layout-sidebar-offset);
-  max-width: 1200px;
-}
-
-@media (max-width: 1024px) {
-  .dashboard-main {
-    margin-left: 0;
-    padding: 20px;
-    padding-top: 80px;
-  }
+  max-width: min(1200px, 100%);
 }
 
 .dash-greeting {
-  font-size: 1.75rem;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.03em;
+  line-height: 1.2;
+  word-break: break-word;
 }
 
-@media (max-width: 640px) {
-  .dash-greeting {
-    font-size: 1.35rem;
-  }
+.page-head {
+  margin-bottom: 24px;
+}
+
+.dash-sub {
+  color: var(--color-text-muted);
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+  line-height: 1.5;
+  max-width: 100%;
 }

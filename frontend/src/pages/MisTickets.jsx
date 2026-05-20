@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 import SmartScanner from '../components/SmartScanner'
 import { AppCollapsible, AppCollapsibleChevron } from '@/components/ui/app-collapsible'
 import { readJsonResponse } from '../utils/readJsonResponse'
@@ -132,9 +132,7 @@ export default function MisTickets() {
   }, [loadGuardados])
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main dashboard-view mis-tickets-page">
+    <DashboardLayout className="dashboard-view mis-tickets-page">
         <div className="mt-page-inner">
           <header className="mt-hero">
             <div className="mt-hero-text">
@@ -395,7 +393,7 @@ export default function MisTickets() {
 
         <style>{`
           /* Toda la anchura disponible (columna principal), no capar a 1200px */
-          .dashboard-layout .dashboard-main.mis-tickets-page {
+          .mis-tickets-page {
             max-width: none;
             width: 100%;
             flex: 1 1 auto;
@@ -1090,7 +1088,6 @@ export default function MisTickets() {
             border-radius: 14px;
           }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

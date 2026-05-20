@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 import { readJsonResponse } from '../utils/readJsonResponse'
 import { CATEGORIAS_GASTO, CATEGORIAS_INGRESO } from '../constants/categoriasGasto.js'
 import { AppSelectCollapsible } from '@/components/ui/app-select-collapsible'
@@ -202,9 +202,7 @@ export default function Finanzas() {
   const pctGas = (resumen.gastos / maxBar) * 100
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main">
+    <DashboardLayout>
         <header className="page-head animate-fade-in">
           <h1 className="dash-greeting">
             Finanzas — <span className="gradient-text">control mensual</span>
@@ -958,7 +956,6 @@ export default function Finanzas() {
             font-variant-numeric: tabular-nums;
           }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

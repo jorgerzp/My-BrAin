@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 
 const fmt = (n) =>
   new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(Number(n) || 0)
@@ -225,10 +225,7 @@ export default function Dashboard() {
   const siguientesEventos = eventosProximos.slice(1, 4)
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-
-      <main className="dashboard-main">
+    <DashboardLayout>
         <header className="dash-header animate-fade-in">
           <div>
             <h1 className="dash-greeting">
@@ -431,13 +428,9 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
-      </main>
+      
 
       <style>{`
-        .dashboard-layout > .dashboard-main {
-          position: relative;
-          z-index: 1;
-        }
 
         /* Header */
         .dash-header {
@@ -830,6 +823,6 @@ export default function Dashboard() {
           }
         }
       `}</style>
-    </div>
+    </DashboardLayout>
   )
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 
 const MEALS = [
   { key: 'desayuno', label: 'Desayuno', icon: '🌅' },
@@ -342,9 +342,7 @@ export default function Alimentacion() {
   const weekInputValue = useMemo(() => mondayToIsoWeekString(mondayOfWeekContaining(from)), [from])
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main">
+    <DashboardLayout>
         <header className="ali-head animate-fade-in">
           <h1 className="dash-greeting">
             Alimentación — <span className="gradient-text">menú semanal</span>
@@ -842,7 +840,6 @@ export default function Alimentacion() {
           .section-title { font-size: 1.05rem; font-weight: 600; }
           .muted { color: var(--color-text-muted); }
         `}</style>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }

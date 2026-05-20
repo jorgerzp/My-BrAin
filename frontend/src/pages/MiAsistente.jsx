@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import Sidebar from '../components/Sidebar'
+import DashboardLayout from '../components/DashboardLayout'
 import { PromptBox } from '@/components/ui/chatgpt-prompt-input'
 import { readJsonResponse } from '../utils/readJsonResponse'
 
@@ -59,9 +59,7 @@ export default function MiAsistente() {
   )
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar />
-      <main className="dashboard-main flex flex-1 flex-col items-center justify-center px-4 py-6">
+    <DashboardLayout className="flex flex-1 flex-col items-center justify-center px-4 py-6">
         {error && (
           <p
             className="mb-3 w-full max-w-xl shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
@@ -150,7 +148,6 @@ export default function MiAsistente() {
             />
           </footer>
         </section>
-      </main>
-    </div>
+    </DashboardLayout>
   )
 }
