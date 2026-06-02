@@ -1,0 +1,27 @@
+# MySQL local para MyBrAIn — datos persistidos en volumen Docker
+# Uso: desde la raíz del repo →  docker compose up -d
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mybrain-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_local_only
+      MYSQL_DATABASE: mybrain
+      MYSQL_USER: mybrain_user
+      MYSQL_PASSWORD: MyBr4in_S3cur3!
+    volumes:
+      - mybrain_mysql_data:/var/lib/mysql
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_local_only"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 25s
+
+volumes:
+  mybrain_mysql_data:
