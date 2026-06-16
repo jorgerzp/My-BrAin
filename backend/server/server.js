@@ -28,6 +28,7 @@ import {
   listSavedTicketsForUser,
   ticketSessionDir,
   getTicketDetailForUser,
+  deleteTicketForUser,
 } from './ticketStorage.js'
 
 await initDatabase()
@@ -1572,15 +1573,15 @@ app.post('/api/insights', async (req, res) => {
       porCategoriaAnterior: anterior,
     }
 
-    const prompt = `Analiza estos gastos mensuales (solo tipo "gasto"):
+    const prompt = `Analiza estos gastos mensuales (solo tipo "gasto") en euros (€):
 ${JSON.stringify(payload, null, 0)}
 
 Genera 3 insights breves (máximo 2 líneas cada uno) en formato JSON ÚNICO sin markdown ni texto extra:
 {"positivo":"...","alerta":"...","consejo":"..."}
-- positivo: felicita por algo positivo (datos reales).
-- alerta: señala una categoría donde se gasta mucho o empeoró respecto al mes anterior.
+- positivo: felicita por algo positivo (datos reales). Usa euros (€).
+- alerta: señala una categoría donde se gasta mucho o empeoró respecto al mes anterior. Usa euros (€).
 - consejo: consejo genérico de ahorro o nutrición cruzada con el contexto de gastos.
-No inventes cifras que no estén en el JSON.`
+No inventes cifras que no estén en el JSON. Todos los montos están en euros.`
 
     const { text, model } = await groqGenerateText(GROQ_KEY, prompt, { temperature: 0.4, maxOutputTokens: 1024 })
     const parsed = safeParseJsonFromModel(text)
@@ -1644,6 +1645,28 @@ app.get('/api/ticket-detalle', (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'No se pudo leer el detalle del ticket' })
+  }
+})
+
+// DELETE /api/ticket/:ticketId — elimina un ticket (carpeta completa)
+app.delete('/api/ticket/:ticketId', (req, res) => {
+  const userId = parseUserId(req)
+  const ticketId = String(req.params.ticketId || '').trim()
+  if (!userId) {
+    return res.status(400).json({ error: 'userId requerido' })
+  }
+  if (!ticketId || /[\\/]/.test(ticketId) || ticketId.length > 200) {
+    return res.status(400).json({ error: 'ticketId inválido' })
+  }
+  try {
+    const deleted = deleteTicketForUser(userId, ticketId)
+    if (!deleted) {
+      return res.status(404).json({ error: 'Ticket no encontrado' })
+    }
+    res.json({ success: true, message: 'Ticket eliminado' })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'No se pudo eliminar el ticket' })
   }
 })
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import AILoader from '@/components/ui/ai-loader'
 
 export default function Login() {
   const { login, register } = useAuth()
@@ -12,27 +13,41 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+    setIsExiting(false)
+    const startTime = Date.now()
     try {
       if (mode === 'login') {
         await login(username.trim(), password)
       } else {
         await register(username.trim(), nombre.trim(), email.trim(), password)
       }
+      
+      const elapsedTime = Date.now() - startTime
+      const minDuration = 2500
+      if (elapsedTime < minDuration) {
+        await new Promise((resolve) => setTimeout(resolve, minDuration - elapsedTime))
+      }
+      
+      setIsExiting(true)
+      await new Promise((resolve) => setTimeout(resolve, 500)) // Wait for the fade-out duration
+      
       navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(err.message || 'Error')
-    } finally {
+      setIsExiting(false)
       setLoading(false)
     }
   }
 
   return (
     <div className="login-page">
+      {loading && <AILoader text={mode === 'login' ? 'Entrando' : 'Registrando'} isExiting={isExiting} />}
       <div className="login-card glass-strong animate-fade-in">
         <div className="login-brand-wrap">
           <img

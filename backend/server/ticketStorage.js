@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
@@ -246,5 +246,25 @@ export function getTicketDetailForUser(userId, ticketId) {
       : null,
     confirmadoEnBd,
     imagenExt: ['.jpg', '.png', '.webp', '.img'].find((ext) => existsSync(join(dir, `imagen${ext}`))) || null,
+  }
+}
+
+/**
+ * Elimina un ticket (carpeta completa) del usuario.
+ * @param {number | string} userId
+ * @param {string} ticketId
+ * @returns {boolean} true si se eliminó, false si no existe
+ */
+export function deleteTicketForUser(userId, ticketId) {
+  const uid = String(userId)
+  const tid = String(ticketId || '').trim()
+  if (!tid || /[\\/]/.test(tid) || tid.length > 200) return false
+  const dir = ticketSessionDir(uid, tid)
+  if (!existsSync(dir)) return false
+  try {
+    rmSync(dir, { recursive: true, force: true })
+    return true
+  } catch {
+    return false
   }
 }

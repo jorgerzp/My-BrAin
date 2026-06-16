@@ -58,12 +58,14 @@ export default function MisTickets() {
   const [detalle, setDetalle] = useState(null)
   const [detalleLoading, setDetalleLoading] = useState(false)
   const [detalleError, setDetalleError] = useState('')
+  const [detalleDeleting, setDetalleDeleting] = useState(false)
 
   const cerrarDetalle = useCallback(() => {
     setDetalleTicketId(null)
     setDetalle(null)
     setDetalleError('')
     setDetalleLoading(false)
+    setDetalleDeleting(false)
   }, [])
 
   const abrirDetalle = useCallback(
@@ -89,15 +91,6 @@ export default function MisTickets() {
     [userId]
   )
 
-  useEffect(() => {
-    if (!detalleTicketId) return
-    const onKey = (e) => {
-      if (e.key === 'Escape') cerrarDetalle()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [detalleTicketId, cerrarDetalle])
-
   const loadGuardados = useCallback(async () => {
     if (!userId) return
     setLoadingLista(true)
@@ -114,6 +107,40 @@ export default function MisTickets() {
       setLoadingLista(false)
     }
   }, [userId])
+
+  const eliminarTicket = useCallback(
+    async (ticketId) => {
+      if (!userId || !ticketId) return
+      if (!window.confirm('¿Estás seguro de que quieres eliminar este ticket?')) {
+        return
+      }
+      setDetalleDeleting(true)
+      try {
+        const res = await fetch(`/api/ticket/${encodeURIComponent(ticketId)}?userId=${userId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        const data = await readJsonResponse(res)
+        if (!res.ok) throw new Error(data.error || 'Error al eliminar el ticket')
+        cerrarDetalle()
+        await loadGuardados()
+      } catch (e) {
+        setDetalleError(e.message || 'Error de red')
+      } finally {
+        setDetalleDeleting(false)
+      }
+    },
+    [userId, cerrarDetalle, loadGuardados]
+  )
+
+  useEffect(() => {
+    if (!detalleTicketId) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') cerrarDetalle()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [detalleTicketId, cerrarDetalle])
 
   useEffect(() => {
     fetch('/api/ai/status')
@@ -330,9 +357,21 @@ export default function MisTickets() {
                 <h2 id="mt-detalle-title" className="mt-modal-title">
                   Detalle del ticket
                 </h2>
-                <button type="button" className="mt-modal-close" onClick={cerrarDetalle} aria-label="Cerrar">
-                  ×
-                </button>
+                <div className="mt-modal-toolbar-actions">
+                  <button
+                    type="button"
+                    className="mt-modal-delete"
+                    onClick={() => eliminarTicket(detalleTicketId)}
+                    disabled={detalleDeleting || detalleLoading}
+                    aria-label="Eliminar ticket"
+                    title="Eliminar este ticket"
+                  >
+                    {detalleDeleting ? '…' : '🗑️'}
+                  </button>
+                  <button type="button" className="mt-modal-close" onClick={cerrarDetalle} aria-label="Cerrar">
+                    ×
+                  </button>
+                </div>
               </div>
               <div className="mt-modal-body">
                 {detalleLoading && <p className="mt-muted">Cargando…</p>}
@@ -997,6 +1036,35 @@ export default function MisTickets() {
           }
           .mt-modal-close:hover {
             background: rgba(74, 69, 62, 0.12);
+          }
+          .mt-modal-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+          }
+          .mt-modal-delete {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(200, 80, 80, 0.1);
+            color: #c85050;
+            font-size: 1.15rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .mt-modal-delete:hover:not(:disabled) {
+            background: rgba(200, 80, 80, 0.2);
+          }
+          .mt-modal-delete:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
           }
           .mt-modal-body {
             padding: 16px 20px 22px;
