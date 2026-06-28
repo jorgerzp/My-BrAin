@@ -7,7 +7,10 @@ import express from 'express'
 import cors from 'cors'
 import bcrypt from 'bcrypt'
 import multer from 'multer'
-import { initDatabase, pool, withTransaction } from './sqlite-db.js'
+import session from 'express-session'
+import pgSession from 'connect-pg-simple'
+import { initDatabase, pool, withTransaction } from './postgres-db.js'
+import { sendWelcomeEmail } from './services/email-service.js'
 import { groqGenerateText, parseJsonFromModel, groqChatCompletion, safeParseJsonFromModel } from './ai/groq.js'
 import { parseTicketFechaOrToday } from './ticketFecha.js'
 import {
@@ -30,6 +33,13 @@ import {
   getTicketDetailForUser,
   deleteTicketForUser,
 } from './ticketStorage.js'
+import {
+  createLinkSession,
+  getInstitutionDetails,
+  createRequisition,
+  getRequisitionDetails,
+  getAccountTransactions,
+} from './tink-service.js'
 
 await initDatabase()
 
@@ -60,6 +70,24 @@ function parseTicketFechaBody(s) {
 // Middleware
 app.use(cors())
 app.use(express.json())
+
+const PgSessionStore = pgSession(session)
+app.use(
+  session({
+    store: new PgSessionStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+    }),
+    secret: process.env.SESSION_SECRET || 'una_clave_secreta_muy_larga_y_segura_para_el_servidor_de_mybrain_2026',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 días
+      secure: false, // false para desarrollo local sin HTTPS
+      httpOnly: true,
+    },
+  })
+)
 
 // ============================================
 // RUTAS DE AUTENTICACIÓN
@@ -92,6 +120,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     // Devolver usuario sin la contraseña
     const { password: _, ...userData } = user
+    req.session.user = userData
     res.json({ user: userData })
   } catch (err) {
     console.error('Error en login:', err)
@@ -133,6 +162,13 @@ app.post('/api/auth/register', async (req, res) => {
       email,
     }
 
+    req.session.user = user
+
+    // Enviar correo electrónico de bienvenida de forma asíncrona sin bloquear la respuesta HTTP
+    sendWelcomeEmail(email, nombre).catch(err => {
+      console.error('[Register] Error asíncrono al enviar correo de bienvenida:', err)
+    })
+
     res.status(201).json({ user })
   } catch (err) {
     console.error('Error en register:', err)
@@ -142,8 +178,60 @@ app.post('/api/auth/register', async (req, res) => {
 
 // GET /api/auth/me (verificar sesión)
 app.get('/api/auth/me', async (req, res) => {
-  // Por ahora sin JWT, solo validación básica
-  res.json({ ok: true })
+  if (req.session && req.session.user) {
+    res.json({ ok: true, user: req.session.user })
+  } else {
+    res.status(401).json({ error: 'No autorizado / sin sesión' })
+  }
+})
+
+// POST /api/auth/logout (cerrar sesión)
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('[Session] Error al destruir sesión:', err)
+      return res.status(500).json({ error: 'No se pudo cerrar la sesión' })
+    }
+    res.clearCookie('connect.sid')
+    res.json({ ok: true })
+  })
+})
+
+// DELETE /api/borrar-cuenta (eliminar cuenta definitivamente)
+app.delete('/api/borrar-cuenta', async (req, res) => {
+  const { email } = req.body
+
+  if (!email) {
+    return res.status(400).json({ error: 'El email del usuario es obligatorio' })
+  }
+
+  try {
+    const [result] = await pool.execute(
+      'DELETE FROM usuarios WHERE email = ?',
+      [email]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' })
+    }
+
+    console.log(`[Auth] Cuenta eliminada con éxito para el email: ${email}`)
+
+    // Destruir la sesión activa del usuario
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('[Session] Error al destruir sesión tras borrado de cuenta:', err)
+        }
+      })
+    }
+    res.clearCookie('connect.sid')
+
+    res.json({ message: 'Cuenta eliminada correctamente' })
+  } catch (err) {
+    console.error('Error al borrar cuenta:', err)
+    res.status(500).json({ error: 'Error del servidor al intentar borrar la cuenta' })
+  }
 })
 
 function parseUserId(req) {
@@ -462,6 +550,380 @@ app.delete('/api/finanzas/huchas/:id', async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Error al eliminar' })
+  }
+})
+
+// ============================================
+// OPEN BANKING - TINK
+// ============================================
+
+// GET /api/banks (Deprecado - Tink Link maneja la lista internamente)
+app.get('/api/banks', async (req, res) => {
+  res.json({ institutions: [] })
+})
+
+// POST /api/tink/session
+app.post('/api/tink/session', async (req, res) => {
+  try {
+    const url = await createLinkSession()
+    console.log(`[Tink] URL de sesión generada con éxito: ${url}`)
+    res.json({ url })
+  } catch (err) {
+    console.error('Error al generar la sesión de Tink Link:', err)
+    res.status(500).json({ error: err.message || 'Error al generar la sesión de conexión con Tink' })
+  }
+})
+
+// POST /api/banks/connect
+app.post('/api/banks/connect', async (req, res) => {
+  const userId = parseUserId(req)
+  const { institutionId, redirectUrl } = req.body || {}
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId es requerido' })
+  }
+  if (!institutionId) {
+    return res.status(400).json({ error: 'institutionId es requerido' })
+  }
+
+  const finalRedirectUrl = redirectUrl || 'http://localhost:5275/finanzas'
+
+  try {
+    // Generar referencia única
+    const reference = `ref-${userId}-${Date.now()}`
+
+    // Crear requisición en GoCardless
+    const { requisitionId, link } = await createRequisition({
+      institutionId,
+      redirectUrl: finalRedirectUrl,
+      reference,
+    })
+
+    // Guardar en la DB
+    await pool.execute(
+      `INSERT INTO conexiones_bancarias (usuario_id, requisition_id, reference, institution_id, status)
+       VALUES (?, ?, ?, ?, 'pending')`,
+      [userId, requisitionId, reference, institutionId]
+    )
+
+    res.json({ link, requisitionId })
+  } catch (err) {
+    console.error('Error al iniciar la conexión con el banco:', err)
+    res.status(500).json({ error: err.message || 'Error al iniciar la conexión con el banco' })
+  }
+})
+
+// GET /api/banks/callback
+app.get('/api/banks/callback', async (req, res) => {
+  const ref = req.query.ref
+  if (!ref) {
+    return res.status(400).json({ error: 'El parámetro "ref" (referencia) es requerido' })
+  }
+
+  try {
+    // 1. Buscar conexión por referencia
+    const [connections] = await pool.execute(
+      'SELECT usuario_id, requisition_id, institution_id FROM conexiones_bancarias WHERE reference = ?',
+      [ref]
+    )
+
+    if (connections.length === 0) {
+      return res.status(404).json({ error: 'No se encontró la conexión para esta referencia' })
+    }
+
+    const { usuario_id: userId, requisition_id: requisitionId, institution_id: institutionId } = connections[0]
+
+    // 2. Obtener cuentas de GoCardless
+    const requisition = await getRequisitionDetails(requisitionId)
+    const accounts = requisition.accounts || []
+
+    if (accounts.length === 0) {
+      return res.status(400).json({ error: 'El banco no ha retornado ninguna cuenta bancaria autorizada.' })
+    }
+
+    // 3. Obtener nombre del banco
+    let bancoNombre = 'Banco'
+    try {
+      const instDetails = await getInstitutionDetails(institutionId)
+      bancoNombre = instDetails.name || 'Banco'
+    } catch (e) {
+      console.warn('[GoCardless] No se pudo obtener nombre de institución:', e.message)
+    }
+
+    // 4. Guardar cuentas en la DB
+    for (const accountId of accounts) {
+      await pool.execute(
+        `INSERT OR IGNORE INTO cuentas_bancarias (usuario_id, requisition_id, account_id, banco_nombre)
+         VALUES (?, ?, ?, ?)`,
+        [userId, requisitionId, accountId, bancoNombre]
+      )
+    }
+
+    // 5. Marcar como conectado
+    await pool.execute(
+      "UPDATE conexiones_bancarias SET status = 'connected' WHERE requisition_id = ?",
+      [requisitionId]
+    )
+
+    res.json({
+      ok: true,
+      message: 'Banco conectado con éxito',
+      accountsCount: accounts.length,
+      bancoNombre,
+    })
+  } catch (err) {
+    console.error('Error al procesar callback bancario:', err)
+    res.status(500).json({ error: err.message || 'Error al conectar el banco' })
+  }
+})
+
+// Clasificador inteligente de gastos por palabras clave
+function guessGastoCategory(desc) {
+  const d = String(desc || '').toLowerCase()
+  if (
+    d.includes('mercadona') ||
+    d.includes('carrefour') ||
+    d.includes('lidl') ||
+    d.includes('dia') ||
+    d.includes('consum') ||
+    d.includes('alcampo') ||
+    d.includes('supermercado') ||
+    d.includes('ahorramas') ||
+    d.includes('sainsburys') ||
+    d.includes('tesco') ||
+    d.includes('comida') ||
+    d.includes('fruteria') ||
+    d.includes('carniceria')
+  ) {
+    return 'Alimentación'
+  }
+  if (
+    d.includes('gasolina') ||
+    d.includes('repsol') ||
+    d.includes('cepsa') ||
+    d.includes('bp') ||
+    d.includes('metro') ||
+    d.includes('bus') ||
+    d.includes('renfe') ||
+    d.includes('uber') ||
+    d.includes('cabify') ||
+    d.includes('taxi') ||
+    d.includes('peaje') ||
+    d.includes('parking') ||
+    d.includes('taller') ||
+    d.includes('combustible')
+  ) {
+    return 'Transporte'
+  }
+  if (
+    d.includes('alquiler') ||
+    d.includes('hipoteca') ||
+    d.includes('iberdrola') ||
+    d.includes('endesa') ||
+    d.includes('naturgy') ||
+    d.includes('agua') ||
+    d.includes('luz') ||
+    d.includes('gas') ||
+    d.includes('comunidad') ||
+    d.includes('internet') ||
+    d.includes('movistar') ||
+    d.includes('vodafone') ||
+    d.includes('orange') ||
+    d.includes('digi')
+  ) {
+    return 'Vivienda y Suministros'
+  }
+  if (
+    d.includes('farmacia') ||
+    d.includes('medico') ||
+    d.includes('hospital') ||
+    d.includes('dentista') ||
+    d.includes('clinica') ||
+    d.includes('seguro medico') ||
+    d.includes('perfumeria') ||
+    d.includes('dermatologia')
+  ) {
+    return 'Salud y Cuidado Personal'
+  }
+  if (
+    d.includes('restaurante') ||
+    d.includes('bar') ||
+    d.includes('cafe') ||
+    d.includes('cine') ||
+    d.includes('teatro') ||
+    d.includes('concierto') ||
+    d.includes('netflix') ||
+    d.includes('spotify') ||
+    d.includes('hbo') ||
+    d.includes('gimnasio') ||
+    d.includes('viaje') ||
+    d.includes('hotel') ||
+    d.includes('vuelo') ||
+    d.includes('entradas') ||
+    d.includes('amazon') ||
+    d.includes('zara') ||
+    d.includes('h&m') ||
+    d.includes('steam') ||
+    d.includes('playstation')
+  ) {
+    return 'Ocio y Estilo de Vida'
+  }
+  if (
+    d.includes('comision') ||
+    d.includes('intereses') ||
+    d.includes('seguro') ||
+    d.includes('prestamo') ||
+    d.includes('banco') ||
+    d.includes('gocardles')
+  ) {
+    return 'Finanzas'
+  }
+  return 'Otros'
+}
+
+// GET /api/banks/transactions
+app.get('/api/banks/transactions', async (req, res) => {
+  const userId = parseUserId(req)
+  if (!userId) {
+    return res.status(400).json({ error: 'userId es requerido' })
+  }
+
+  try {
+    // 1. Obtener cuentas conectadas
+    const [accounts] = await pool.execute(
+      'SELECT account_id, banco_nombre FROM cuentas_bancarias WHERE usuario_id = ?',
+      [userId]
+    )
+
+    if (accounts.length === 0) {
+      return res.json({
+        ok: true,
+        message: 'No tienes ninguna cuenta bancaria conectada.',
+        importedCount: 0,
+      })
+    }
+
+    let totalImported = 0
+    const limitDate = new Date()
+    limitDate.setDate(limitDate.getDate() - 30)
+
+    // 2. Descargar e importar movimientos para cada cuenta
+    for (const account of accounts) {
+      const { account_id: accountId, banco_nombre: bancoNombre } = account
+      console.log(`[GoCardless] Descargando movimientos para cuenta ${accountId}...`)
+
+      const rawData = await getAccountTransactions(accountId)
+      const bookedTransactions = rawData.transactions?.booked || []
+
+      for (const tx of bookedTransactions) {
+        const transactionId = tx.transactionId || tx.internalTransactionId || tx.entryReference
+        if (!transactionId) continue
+
+        const rawAmount = parseFloat(tx.transactionAmount?.amount)
+        if (isNaN(rawAmount)) continue
+
+        const dateStr = tx.valueDate || tx.bookingDate
+        if (!dateStr) continue
+
+        const txDate = new Date(dateStr)
+        if (txDate < limitDate) continue
+
+        const tipo = rawAmount < 0 ? 'gasto' : 'ingreso'
+        const monto = Math.abs(rawAmount)
+
+        const desc =
+          tx.remittanceInformationUnstructured ||
+          tx.remittanceInformationUnstructuredArray?.join(', ') ||
+          tx.creditorName ||
+          tx.debtorName ||
+          'Transacción Bancaria'
+
+        const descripcion = `[${bancoNombre}] ${desc}`
+
+        // Categorización inteligente
+        let categoria = 'Otros'
+        if (tipo === 'gasto') {
+          categoria = guessGastoCategory(desc)
+        } else {
+          const d = desc.toLowerCase()
+          if (d.includes('nomina') || d.includes('sueldo') || d.includes('payroll') || d.includes('salario') || d.includes('prestacion')) {
+            categoria = 'Nómina'
+          }
+        }
+
+        // Insertar ignorando duplicados
+        const [result] = await pool.execute(
+          `INSERT OR IGNORE INTO movimientos_financieros (usuario_id, tipo, monto, categoria, descripcion, fecha, banco_transaccion_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [userId, tipo, monto, categoria, descripcion.slice(0, 500), dateStr, transactionId]
+        )
+
+        if (result.affectedRows > 0) {
+          totalImported++
+        }
+      }
+    }
+
+    res.json({
+      ok: true,
+      message: `Sincronización completada. Se importaron ${totalImported} transacciones nuevas.`,
+      importedCount: totalImported,
+    })
+  } catch (err) {
+    console.error('Error al importar transacciones:', err)
+    res.status(500).json({ error: err.message || 'Error al importar transacciones' })
+  }
+})
+
+// GET /api/banks/connections
+app.get('/api/banks/connections', async (req, res) => {
+  const userId = parseUserId(req)
+  if (!userId) {
+    return res.status(400).json({ error: 'userId es requerido' })
+  }
+
+  try {
+    const [accounts] = await pool.execute(
+      `SELECT cb.id as conexion_id, cb.institution_id, cb.status, cb.created_at, cb.requisition_id,
+              ctb.account_id, ctb.banco_nombre
+       FROM conexiones_bancarias cb
+       LEFT JOIN cuentas_bancarias ctb ON cb.requisition_id = ctb.requisition_id
+       WHERE cb.usuario_id = ?`,
+      [userId]
+    )
+    res.json({ connections: accounts })
+  } catch (err) {
+    console.error('Error al obtener conexiones bancarias:', err)
+    res.status(500).json({ error: err.message || 'Error al cargar conexiones' })
+  }
+})
+
+// DELETE /api/banks/connections/:requisitionId
+app.delete('/api/banks/connections/:requisitionId', async (req, res) => {
+  const userId = parseUserId(req)
+  const requisitionId = req.params.requisitionId
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId es requerido' })
+  }
+  if (!requisitionId) {
+    return res.status(400).json({ error: 'requisitionId es requerido' })
+  }
+
+  try {
+    const [result] = await pool.execute(
+      'DELETE FROM conexiones_bancarias WHERE requisition_id = ? AND usuario_id = ?',
+      [requisitionId, userId]
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Conexión no encontrada o no pertenece al usuario' })
+    }
+
+    res.json({ ok: true, message: 'Banco desconectado con éxito' })
+  } catch (err) {
+    console.error('Error al desconectar el banco:', err)
+    res.status(500).json({ error: err.message || 'Error al desconectar el banco' })
   }
 })
 

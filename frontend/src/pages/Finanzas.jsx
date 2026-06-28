@@ -5,6 +5,7 @@ import DashboardLayout from '../components/DashboardLayout'
 import { readJsonResponse } from '../utils/readJsonResponse'
 import { CATEGORIAS_GASTO, CATEGORIAS_INGRESO } from '../constants/categoriasGasto.js'
 import { AppSelectCollapsible } from '@/components/ui/app-select-collapsible'
+import BankConnect from '../components/BankConnect'
 
 const TIPOS_MOVIMIENTO = [
   { value: 'gasto', label: 'Gasto' },
@@ -231,6 +232,10 @@ export default function Finanzas() {
               onChange={(e) => setYear(Number(e.target.value))}
             />
           </label>
+        </div>
+
+        <div className="mb-6 animate-fade-in">
+          <BankConnect userId={userId} onSyncSuccess={load} />
         </div>
 
         {error && (

@@ -7,16 +7,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Comprobar si hay sesión guardada
-    const saved = localStorage.getItem('mybrain_user')
-    if (saved) {
+    const checkSession = async () => {
       try {
-        setUser(JSON.parse(saved))
+        const res = await fetch('/api/auth/me')
+        const data = await res.json()
+        if (res.ok && data.user) {
+          setUser(data.user)
+          localStorage.setItem('mybrain_user', JSON.stringify(data.user))
+        } else {
+          setUser(null)
+          localStorage.removeItem('mybrain_user')
+        }
       } catch (e) {
-        localStorage.removeItem('mybrain_user')
+        console.error('[Auth] Error al verificar sesión en servidor:', e)
+        // Fallback al valor local si el servidor no responde
+        const saved = localStorage.getItem('mybrain_user')
+        if (saved) {
+          try {
+            setUser(JSON.parse(saved))
+          } catch (err) {
+            localStorage.removeItem('mybrain_user')
+          }
+        }
+      } finally {
+        setLoading(false)
       }
     }
-    setLoading(false)
+    checkSession()
   }, [])
 
   const login = async (username, password) => {
@@ -63,9 +80,15 @@ export function AuthProvider({ children }) {
     return data.user
   }
 
-  const logout = () => {
-    localStorage.removeItem('mybrain_user')
-    setUser(null)
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch (e) {
+      console.error('[Auth] Error al cerrar sesión en servidor:', e)
+    } finally {
+      localStorage.removeItem('mybrain_user')
+      setUser(null)
+    }
   }
 
   return (
