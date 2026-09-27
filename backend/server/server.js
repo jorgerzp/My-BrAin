@@ -122,8 +122,8 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     const [rows] = await pool.execute(
-      'SELECT id, username, nombre, email, password, avatar FROM usuarios WHERE username = ?',
-      [username]
+      'SELECT id, username, nombre, email, password, avatar FROM usuarios WHERE LOWER(username) = LOWER(?)',
+      [username.trim()]
     )
 
     if (rows.length === 0) {
@@ -222,6 +222,11 @@ app.delete('/api/borrar-cuenta', async (req, res) => {
 
   if (!email) {
     return res.status(400).json({ error: 'El email del usuario es obligatorio' })
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  if (normalizedEmail === 'demo@mybrain.com' || normalizedEmail === 'admin@mybrain.com') {
+    return res.status(403).json({ error: 'Las cuentas del sistema no se pueden eliminar' })
   }
 
   try {

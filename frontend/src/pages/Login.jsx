@@ -45,6 +45,38 @@ export default function Login() {
     }
   }
 
+  const handleFillDemo = () => {
+    setMode('login')
+    setUsername('demo')
+    setPassword('demo')
+    setError('')
+  }
+
+  const handleQuickDemoLogin = async () => {
+    setError('')
+    setMode('login')
+    setUsername('demo')
+    setPassword('demo')
+    setLoading(true)
+    setIsExiting(false)
+    const startTime = Date.now()
+    try {
+      await login('demo', 'demo')
+      const elapsedTime = Date.now() - startTime
+      const minDuration = 2000
+      if (elapsedTime < minDuration) {
+        await new Promise((resolve) => setTimeout(resolve, minDuration - elapsedTime))
+      }
+      setIsExiting(true)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      setError(err.message || 'Error al iniciar sesión con demo')
+      setIsExiting(false)
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="login-page">
       {loading && <AILoader text={mode === 'login' ? 'Entrando' : 'Registrando'} isExiting={isExiting} />}
@@ -123,7 +155,44 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer eliminado */}
+        <div className="login-demo-card">
+          <div className="login-demo-header">
+            <span className="login-demo-badge">✨ ACCESO DEMO</span>
+            <span className="login-demo-tag">Modo visualización</span>
+          </div>
+          <p className="login-demo-desc">
+            ¿Quieres explorar el proyecto? Puedes entrar libremente con la cuenta demo:
+          </p>
+          <div className="login-demo-creds">
+            <button
+              type="button"
+              className="login-demo-pill"
+              onClick={handleFillDemo}
+              title="Clic para autorrellenar campos"
+            >
+              <span className="demo-pill-label">Usuario:</span>
+              <span className="demo-pill-val">demo</span>
+            </button>
+            <button
+              type="button"
+              className="login-demo-pill"
+              onClick={handleFillDemo}
+              title="Clic para autorrellenar campos"
+            >
+              <span className="demo-pill-label">Contraseña:</span>
+              <span className="demo-pill-val">demo</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            className="login-demo-btn"
+            onClick={handleQuickDemoLogin}
+            disabled={loading}
+          >
+            <span className="demo-btn-icon">⚡</span>
+            <span>Entrar directamente como Demo</span>
+          </button>
+        </div>
       </div>
 
       <style>{`
@@ -222,6 +291,118 @@ export default function Login() {
         }
         .login-link:hover {
           text-decoration: underline;
+        }
+
+        /* Card de Acceso Demo */
+        .login-demo-card {
+          margin-top: 22px;
+          padding: 16px 18px;
+          border-radius: 16px;
+          background: rgba(99, 102, 241, 0.05);
+          border: 1px solid rgba(99, 102, 241, 0.2);
+          box-shadow: 0 4px 18px -2px rgba(99, 102, 241, 0.08);
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          transition: all 0.2s ease;
+        }
+        .login-demo-card:hover {
+          border-color: rgba(99, 102, 241, 0.35);
+          background: rgba(99, 102, 241, 0.07);
+        }
+        .login-demo-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .login-demo-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.7rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          color: #4f46e5;
+          text-transform: uppercase;
+        }
+        .login-demo-tag {
+          font-size: 0.72rem;
+          color: var(--color-text-muted);
+          font-weight: 500;
+        }
+        .login-demo-desc {
+          font-size: 0.8rem;
+          color: var(--color-text-muted);
+          line-height: 1.35;
+          margin: 0;
+        }
+        .login-demo-creds {
+          display: flex;
+          gap: 8px;
+        }
+        .login-demo-pill {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 8px 10px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.9);
+          border: 1px dashed rgba(99, 102, 241, 0.35);
+          font-size: 0.8rem;
+          color: var(--color-text);
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .login-demo-pill:hover {
+          background: #ffffff;
+          border-color: #6366f1;
+          border-style: solid;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+        }
+        .demo-pill-label {
+          color: var(--color-text-muted);
+          font-weight: 500;
+        }
+        .demo-pill-val {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-weight: 700;
+          color: #4f46e5;
+        }
+        .login-demo-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 12px;
+          border: none;
+          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+          color: #ffffff;
+          font-family: var(--font-main);
+          font-size: 0.84rem;
+          font-weight: 600;
+          cursor: pointer;
+          box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
+          transition: all 0.2s ease;
+        }
+        .login-demo-btn:hover:not(:disabled) {
+          filter: brightness(1.08);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 18px rgba(79, 70, 229, 0.38);
+        }
+        .login-demo-btn:active:not(:disabled) {
+          transform: scale(0.99);
+        }
+        .login-demo-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .demo-btn-icon {
+          font-size: 0.95rem;
         }
       `}</style>
     </div>
