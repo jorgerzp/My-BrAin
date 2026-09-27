@@ -9,7 +9,7 @@ import bcrypt from 'bcrypt'
 import multer from 'multer'
 import session from 'express-session'
 import pgSession from 'connect-pg-simple'
-import { initDatabase, pool, withTransaction } from './postgres-db.js'
+import { inicializarBaseDeDatos, initDatabase, pool, withTransaction, poolPg } from './postgres-db.js'
 import { sendWelcomeEmail } from './services/email-service.js'
 import { groqGenerateText, parseJsonFromModel, groqChatCompletion, safeParseJsonFromModel } from './ai/groq.js'
 import { parseTicketFechaOrToday } from './ticketFecha.js'
@@ -41,7 +41,7 @@ import {
   getAccountTransactions,
 } from './tink-service.js'
 
-await initDatabase()
+await inicializarBaseDeDatos()
 
 /** Claves Groq suelen empezar por `gsk_` */
 const GROQ_KEY = (() => {
@@ -76,11 +76,25 @@ app.get(['/api/ping', '/health', '/api/health', '/ping'], (_req, res) => {
   res.status(200).json({ status: 'OK' })
 })
 
+// Endpoint para inicializar / verificar estructura de base de datos en Neon
+app.all(['/api/admin/init-db', '/api/db/init'], async (_req, res) => {
+  try {
+    await inicializarBaseDeDatos()
+    res.status(200).json({
+      ok: true,
+      message: 'Base de datos Neon inicializada y verificada con éxito (tablas creadas o validadas).',
+    })
+  } catch (err) {
+    console.error('Error al inicializar la base de datos:', err)
+    res.status(500).json({ ok: false, error: err.message })
+  }
+})
+
 const PgSessionStore = pgSession(session)
 app.use(
   session({
     store: new PgSessionStore({
-      conString: process.env.DATABASE_URL,
+      pool: poolPg,
       createTableIfMissing: true,
     }),
     secret: process.env.SESSION_SECRET || 'una_clave_secreta_muy_larga_y_segura_para_el_servidor_de_mybrain_2026',

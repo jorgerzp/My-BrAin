@@ -3,11 +3,21 @@ import './load-env.js'
 
 const { Pool } = pg
 
-const poolPg = new Pool({
+export const poolPg = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 })
 
-const SCHEMA = `
+poolPg.on('error', (err) => {
+  console.error('[PostgreSQL] Error inesperado en el cliente del Pool:', err)
+})
+
+export const SCHEMA = `
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 CREATE TABLE IF NOT EXISTS usuarios (
   id SERIAL PRIMARY KEY,
   username VARCHAR(100) NOT NULL UNIQUE,
@@ -15,8 +25,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email VARCHAR(255) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   avatar TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS huchas_ahorro (
@@ -26,7 +36,7 @@ CREATE TABLE IF NOT EXISTS huchas_ahorro (
   objetivo DOUBLE PRECISION,
   saldo DOUBLE PRECISION NOT NULL DEFAULT 0,
   orden INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS movimientos_financieros (
@@ -39,7 +49,7 @@ CREATE TABLE IF NOT EXISTS movimientos_financieros (
   fecha VARCHAR(50) NOT NULL,
   hucha_id INTEGER REFERENCES huchas_ahorro(id) ON DELETE SET NULL,
   banco_transaccion_id VARCHAR(255) UNIQUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS comidas_menu (
@@ -49,8 +59,8 @@ CREATE TABLE IF NOT EXISTS comidas_menu (
   momento VARCHAR(50) NOT NULL,
   plato VARCHAR(255) NOT NULL,
   notas TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (usuario_id, fecha, momento)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_comidas_menu_user_fecha_momento UNIQUE (usuario_id, fecha, momento)
 );
 
 CREATE TABLE IF NOT EXISTS lista_compra (
@@ -59,7 +69,7 @@ CREATE TABLE IF NOT EXISTS lista_compra (
   item VARCHAR(255) NOT NULL,
   cantidad INTEGER NOT NULL DEFAULT 1,
   comprado INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS despensa (
@@ -67,7 +77,7 @@ CREATE TABLE IF NOT EXISTS despensa (
   usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   item VARCHAR(255) NOT NULL,
   origen VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS eventos (
@@ -76,7 +86,7 @@ CREATE TABLE IF NOT EXISTS eventos (
   titulo VARCHAR(255) NOT NULL,
   fecha_evento VARCHAR(50) NOT NULL,
   descripcion TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS conexiones_bancarias (
@@ -86,7 +96,7 @@ CREATE TABLE IF NOT EXISTS conexiones_bancarias (
   reference VARCHAR(255) NOT NULL UNIQUE,
   institution_id VARCHAR(255) NOT NULL,
   status VARCHAR(50) DEFAULT 'pending',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS cuentas_bancarias (
@@ -95,7 +105,7 @@ CREATE TABLE IF NOT EXISTS cuentas_bancarias (
   requisition_id VARCHAR(255) NOT NULL REFERENCES conexiones_bancarias(requisition_id) ON DELETE CASCADE,
   account_id VARCHAR(255) NOT NULL UNIQUE,
   banco_nombre VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS "session" (
@@ -103,12 +113,14 @@ CREATE TABLE IF NOT EXISTS "session" (
   "sess" json NOT NULL,
   "expire" timestamp(6) NOT NULL,
   CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
-) WITH (OIDS=FALSE);
+);
 `;
 
-const INDEXES = `
+export const INDEXES = `
 CREATE INDEX IF NOT EXISTS idx_huchas_usuario ON huchas_ahorro(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_mov_user_fecha ON movimientos_financieros(usuario_id, fecha);
+CREATE INDEX IF NOT EXISTS idx_mov_hucha ON movimientos_financieros(hucha_id);
+CREATE INDEX IF NOT EXISTS idx_comidas_user_fecha ON comidas_menu(usuario_id, fecha);
 CREATE INDEX IF NOT EXISTS idx_lista_user ON lista_compra(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_despensa_user ON despensa(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_eventos_user_fecha ON eventos(usuario_id, fecha_evento);
@@ -170,26 +182,38 @@ async function seedAdmin(client) {
 }
 
 /**
- * Inicializa la base de datos PostgreSQL, creando las tablas y el usuario administrador inicial.
+ * Inicializa la base de datos PostgreSQL en Neon:
+ * 1. Establece conexión mediante pool con SSL habilitado.
+ * 2. Ejecuta el DDL (CREATE TABLE IF NOT EXISTS) para finanzas, alimentación, vida, banca y autenticación.
+ * 3. Crea índices para optimización de consultas.
+ * 4. Inserta el usuario administrador inicial si no existe.
  */
-export async function initDatabase() {
-  console.log('[PostgreSQL] Conectando a la base de datos...')
+export async function inicializarBaseDeDatos() {
+  if (!process.env.DATABASE_URL) {
+    console.warn('[PostgreSQL] ⚠️ DATABASE_URL no está configurada en las variables de entorno.')
+    return
+  }
+
+  console.log('[PostgreSQL] Conectando a Neon PostgreSQL y verificando esquema...')
   const client = await poolPg.connect()
   try {
-    // Ejecutar creación del esquema
+    // Ejecutar creación del esquema (tablas de finanzas, alimentación, vida, etc.)
     await client.query(SCHEMA)
     // Crear índices
     await client.query(INDEXES)
-    // Seed admin
+    // Seed del usuario administrador por defecto
     await seedAdmin(client)
-    console.log('✅ Conexión exitosa a PostgreSQL y esquema validado.')
+    console.log('✅ Conexión exitosa a Neon PostgreSQL y esquema validado correctamente.')
   } catch (err) {
-    console.error('❌ Error al inicializar PostgreSQL:', err)
+    console.error('❌ Error al inicializar PostgreSQL en Neon:', err)
     throw err
   } finally {
     client.release()
   }
 }
+
+// Alias para compatibilidad con código existente
+export const initDatabase = inicializarBaseDeDatos
 
 /**
  * Adaptador compatible con pool.execute de la base de datos anterior.
