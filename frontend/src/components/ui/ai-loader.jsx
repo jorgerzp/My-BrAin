@@ -1,10 +1,10 @@
 import * as React from "react";
 
-export const Component = ({ size = 180, text = "Generating", isExiting = false }) => {
+export const Component = ({ size = 180, text = "Generating", isExiting = false, fullScreen = true }) => {
   const letters = text.split("");
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-[#fafafa]/85 via-[#f5f5f7]/85 to-[#e5e5e7]/85 dark:from-[#0f172a]/90 dark:via-[#090d16]/90 dark:to-black/95 backdrop-blur-md transition-all duration-500 ease-in-out ${
+    <div className={`${fullScreen ? "fixed inset-0 z-50" : "relative"} flex items-center justify-center ${fullScreen ? "bg-gradient-to-b from-[#fafafa]/85 via-[#f5f5f7]/85 to-[#e5e5e7]/85 dark:from-[#0f172a]/90 dark:via-[#090d16]/90 dark:to-black/95 backdrop-blur-md" : ""} transition-all duration-500 ease-in-out ${
       isExiting ? "opacity-0 scale-95 pointer-events-none" : "opacity-100 scale-100"
     }`}>
       <div

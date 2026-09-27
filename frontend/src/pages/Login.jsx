@@ -50,14 +50,7 @@ export default function Login() {
       {loading && <AILoader text={mode === 'login' ? 'Entrando' : 'Registrando'} isExiting={isExiting} />}
       <div className="login-card glass-strong animate-fade-in">
         <div className="login-brand-wrap">
-          <img
-            src="/logo-mybrain.png"
-            alt="MybrAIn — Your Intelligent Personal Assistant"
-            className="login-brand-logo"
-            width={1024}
-            height={559}
-            decoding="async"
-          />
+          <AILoader size={180} text="" fullScreen={false} />
         </div>
 
         <div className="login-tabs">

@@ -71,6 +71,11 @@ function parseTicketFechaBody(s) {
 app.use(cors())
 app.use(express.json())
 
+// Endpoint público keep-alive / health check (para UptimeRobot y prevención de sleep)
+app.get(['/api/ping', '/health', '/api/health', '/ping'], (_req, res) => {
+  res.status(200).json({ status: 'OK' })
+})
+
 const PgSessionStore = pgSession(session)
 app.use(
   session({
@@ -943,7 +948,7 @@ app.get('/api/eventos', async (req, res) => {
     res.json({ eventos: rows })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: sqliteFriendlyError(err, 'Error al cargar eventos') })
+    res.status(500).json({ error: 'Error al cargar eventos' })
   }
 })
 
@@ -1281,10 +1286,10 @@ async function reemplazarListaPendienteDesdeMenus(userId, menus, preferGroq) {
   return { ok: true, origen, agregados, productos }
 }
 
-function sqliteFriendlyError(err, accion) {
+function postgresFriendlyError(err, accion) {
   const msg = String(err?.message || '')
-  if (msg.includes('no such table')) {
-    return `${accion}: borra backend/database/database.sqlite y reinicia el servidor para recrear tablas.`
+  if (msg.includes('relation') && msg.includes('does not exist')) {
+    return `${accion}: verifica que PostgreSQL esté corriendo y que el esquema se haya creado correctamente.`
   }
   return `${accion}. Si persiste, mira el error en la terminal del servidor.`
 }
@@ -1307,7 +1312,7 @@ app.get('/api/alimentacion/menu', async (req, res) => {
     res.json({ menus: rows })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: sqliteFriendlyError(err, 'Error al cargar menús') })
+    res.status(500).json({ error: postgresFriendlyError(err, 'Error al cargar menús') })
   }
 })
 
@@ -1437,7 +1442,7 @@ app.get('/api/alimentacion/lista', async (req, res) => {
     res.json({ items: rows, menuSemanaSync })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: sqliteFriendlyError(err, 'Error al cargar lista') })
+    res.status(500).json({ error: postgresFriendlyError(err, 'Error al cargar lista') })
   }
 })
 
@@ -1573,7 +1578,7 @@ app.post('/api/alimentacion/lista/desde-menu', async (req, res) => {
     })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: sqliteFriendlyError(err, 'No se pudo generar la lista desde el menú') })
+    res.status(500).json({ error: postgresFriendlyError(err, 'No se pudo generar la lista desde el menú') })
   }
 })
 
